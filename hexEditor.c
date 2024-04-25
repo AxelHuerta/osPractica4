@@ -11,7 +11,8 @@
 /* Variable global para mejor legibilidad */
 int fd; // Archivo a leer
 
-void printStatusBar(int row, int col, int winHeight, int page);
+void printStatusBar(int row, int col, int winHeight, int page, int start,
+                    int end);
 
 char *hazLinea(char *base, int dir) {
   char linea[100]; // La linea es mas pequeña
@@ -116,9 +117,19 @@ int edita(char *filename) {
   int scroll = winHeight - 1;
   int recorrido = 0;
   int page = 1;
+  int pages = numLines / (winHeight - 1);
+  int *arrayPages = (int *)malloc((pages + 1) * sizeof(int));
+  int index = 0;
+  int lim = 0;
+
+  // lines per page
+  for (int i = 0; i < pages + 1; i++) {
+    arrayPages[i] = i * (winHeight - 1);
+  }
 
   // status bar
-  printStatusBar(row, col, winHeight, page);
+  printStatusBar(recorrido, col, winHeight, page, arrayPages[index],
+                 arrayPages[index + 1]);
 
   // NOTE: move before getch
   move(row, col);
@@ -133,65 +144,70 @@ int edita(char *filename) {
       col = col + 3;
     }
     // TODO: add recorrido to the condition
-    if (c == KEY_UP) {
-      if (row == 0 && scroll > 0) {
+    if (c == KEY_UP && recorrido > 0) {
+      recorrido -= 1;
+      row -= 1;
+      if (row == -1 && index > 0) {
         // TODO: repeat code
-        // next page
-        scroll -= winHeight - 1;
+        // preview page
+        index--;
+
         clear();
-        for (int i = scroll; i < (scroll + winHeight - 1); i++) {
+        for (int i = arrayPages[index]; i < arrayPages[index + 1]; i++) {
           char *l = hazLinea(map, i * 16);
 
-          move(i + scroll, 0);
+          move(i, 0);
           addstr(l);
         }
 
-        // next page
-        // scroll -= winHeight - 1;
-        refresh();
-
         // restart position
-        col = 9;
         row = winHeight - 2;
-        page = scroll / (winHeight - 1);
-        printStatusBar(row, col, winHeight, page);
+        page--;
+
+        refresh();
+        printStatusBar(recorrido, col, winHeight, page, arrayPages[index],
+                       arrayPages[index + 1]);
         move(row, col);
         c = getch();
-      } else {
-        row = row - 1;
       }
-
-      recorrido -= 1;
     }
+
     if (c == KEY_DOWN && recorrido < numLines - 1) {
       recorrido += 1;
       row = row + 1;
       if (row == winHeight - 1) {
         // TODO: repeat code
+        index++;
+
+        if (index == pages) {
+          lim = numLines - arrayPages[index];
+          printf("Aqui el limite es igual a: %d\n", lim);
+          lim = arrayPages[index] + lim;
+        } else {
+          lim = arrayPages[index + 1];
+        }
+
+        printf("Aqui el limite es igual a: %d\n", lim);
+
         clear();
-        for (int i = scroll; i < (scroll + winHeight - 1) && i < numLines;
-             i++) {
+        for (int i = arrayPages[index]; i < lim; i++) {
           char *l = hazLinea(map, i * 16);
 
-          move(i + scroll, 0);
+          move(i, 0);
           addstr(l);
         }
 
-        // next page
-        scroll += winHeight - 1;
-
         // restart position
-        col = 9;
         row = 0;
-        page = scroll / (winHeight - 1);
+        page++;
         refresh();
-        printStatusBar(row, col, winHeight, page);
+        printStatusBar(recorrido, col, winHeight, page, arrayPages[index], lim);
         move(row, col);
         c = getch();
       }
     }
 
-    printStatusBar(row, col, winHeight, page);
+    printStatusBar(recorrido, col, winHeight, page, arrayPages[index], lim);
     move(row, col);
     c = getch();
   }
@@ -204,10 +220,12 @@ int edita(char *filename) {
   return 0;
 }
 
-void printStatusBar(int row, int col, int winHeight, int page) {
+void printStatusBar(int row, int col, int winHeight, int page, int start,
+                    int end) {
   move(winHeight - 1, 0);
   clrtoeol(); // Clear line
-  printw("Fila: %d, Columna: %d, Página: %d", row + 1, col, page);
+  printw("Fila: %d, Columna: %d, Página: %d, start: %d, end: %d", row + 1, col,
+         page, start, end);
   refresh();
 }
 
