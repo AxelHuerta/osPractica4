@@ -11,8 +11,9 @@
 /* Variable global para mejor legibilidad */
 int fd; // Archivo a leer
 
-void printStatusBar(int row, int col, int winHeight, int page, int start,
-                    int end);
+void printStatusBar(int row, int col, int winHeight, int page);
+void scrollPage(char *map, int start, int end, int *row, int *col, int *page,
+                int winHeight);
 
 char *hazLinea(char *base, int dir) {
   char linea[100]; // La linea es mas pequeña
@@ -114,7 +115,6 @@ int edita(char *filename) {
 
   int col = 9;
   int row = 0;
-  int scroll = winHeight - 1;
   int recorrido = 0;
   int page = 1;
   int pages = numLines / (winHeight - 1);
@@ -128,86 +128,61 @@ int edita(char *filename) {
   }
 
   // status bar
-  printStatusBar(recorrido, col, winHeight, page, arrayPages[index],
-                 arrayPages[index + 1]);
+  printStatusBar(recorrido, col, winHeight, page);
 
   // NOTE: move before getch
   move(row, col);
-
   int c = getch();
 
   while (c != 26) {
+    // key left
     if (c == KEY_LEFT && col > 9) {
       col = col - 3;
     }
+
+    // key right
     if (c == KEY_RIGHT && col < 54) {
       col = col + 3;
     }
-    // TODO: add recorrido to the condition
+
+    // key up
     if (c == KEY_UP && recorrido > 0) {
       recorrido -= 1;
       row -= 1;
       if (row == -1 && index > 0) {
-        // TODO: repeat code
         // preview page
         index--;
-
-        clear();
-        for (int i = arrayPages[index]; i < arrayPages[index + 1]; i++) {
-          char *l = hazLinea(map, i * 16);
-
-          move(i, 0);
-          addstr(l);
-        }
-
-        // restart position
-        row = winHeight - 2;
         page--;
+        row = winHeight - 2;
 
-        refresh();
-        printStatusBar(recorrido, col, winHeight, page, arrayPages[index],
-                       arrayPages[index + 1]);
-        move(row, col);
+        scrollPage(map, arrayPages[index], arrayPages[index + 1], &row, &col,
+                   &page, winHeight);
         c = getch();
       }
     }
 
+    // key down
     if (c == KEY_DOWN && recorrido < numLines - 1) {
       recorrido += 1;
       row = row + 1;
       if (row == winHeight - 1) {
-        // TODO: repeat code
         index++;
+        page++;
+        row = 0;
 
         if (index == pages) {
           lim = numLines - arrayPages[index];
-          printf("Aqui el limite es igual a: %d\n", lim);
           lim = arrayPages[index] + lim;
         } else {
           lim = arrayPages[index + 1];
         }
 
-        printf("Aqui el limite es igual a: %d\n", lim);
-
-        clear();
-        for (int i = arrayPages[index]; i < lim; i++) {
-          char *l = hazLinea(map, i * 16);
-
-          move(i, 0);
-          addstr(l);
-        }
-
-        // restart position
-        row = 0;
-        page++;
-        refresh();
-        printStatusBar(recorrido, col, winHeight, page, arrayPages[index], lim);
-        move(row, col);
+        scrollPage(map, arrayPages[index], lim, &row, &col, &page, winHeight);
         c = getch();
       }
     }
 
-    printStatusBar(recorrido, col, winHeight, page, arrayPages[index], lim);
+    printStatusBar(recorrido, col, winHeight, page);
     move(row, col);
     c = getch();
   }
@@ -220,12 +195,24 @@ int edita(char *filename) {
   return 0;
 }
 
-void printStatusBar(int row, int col, int winHeight, int page, int start,
-                    int end) {
+void scrollPage(char *map, int start, int end, int *row, int *col, int *page,
+                int winHeight) {
+  clear();
+  for (int i = start; i < end; i++) {
+    char *l = hazLinea(map, i * 16);
+    move(i - start, 0);
+    addstr(l);
+  }
+
+  refresh();
+  printStatusBar(*row, *col, winHeight, *page);
+  move(*row, *col);
+}
+
+void printStatusBar(int row, int col, int winHeight, int page) {
   move(winHeight - 1, 0);
-  clrtoeol(); // Clear line
-  printw("Fila: %d, Columna: %d, Página: %d, start: %d, end: %d", row + 1, col,
-         page, start, end);
+  clrtoeol(); // clear line
+  printw("Fila: %d, Columna: %d, Página: %d", row + 1, col, page);
   refresh();
 }
 
