@@ -93,15 +93,13 @@ int edita(char *filename) {
     exit(EXIT_FAILURE);
   }
 
-  // TODO: check this and last empty text
-  // Obtén el tamaño del archivo
+  // get file size
   struct stat st;
   fstat(fd, &st);
   long fileSize = st.st_size;
   int numLines = fileSize / 16;
 
-  // TODO: unnecessary height
-  // Obtiene el tamaño de la ventana
+  // get window size
   int winHeight, winWidth;
   getmaxyx(stdscr, winHeight, winWidth);
 
@@ -155,8 +153,10 @@ int edita(char *filename) {
         page--;
         row = winHeight - 2;
 
-        scrollPage(map, arrayPages[index], arrayPages[index + 1], &row, &col,
-                   &page, winHeight);
+        scrollPage(map, arrayPages[index], arrayPages[index + 1], &recorrido,
+                   &col, &page, winHeight);
+
+        move(row, col);
         c = getch();
       }
     }
@@ -177,9 +177,41 @@ int edita(char *filename) {
           lim = arrayPages[index + 1];
         }
 
-        scrollPage(map, arrayPages[index], lim, &row, &col, &page, winHeight);
+        scrollPage(map, arrayPages[index], lim, &recorrido, &col, &page,
+                   winHeight);
+
+        move(row, col);
         c = getch();
       }
+    }
+
+    // go to the top of the file
+    if (c == KEY_HOME) {
+      recorrido = 0;
+      row = 0;
+      col = 9;
+      page = 1;
+      index = 0;
+
+      scrollPage(map, 0, winHeight - 1, &recorrido, &col, &page, winHeight);
+      move(row, col);
+      c = getch();
+    }
+
+    // go to the end of the file
+    if (c == KEY_END) {
+      recorrido = numLines - 1;
+      col = 9;
+      page = pages + 1;
+      index = pages;
+
+      row = numLines - arrayPages[index] - 1;
+
+      scrollPage(map, arrayPages[index], numLines, &recorrido, &col, &page,
+                 winHeight);
+
+      move(row, col);
+      c = getch();
     }
 
     printStatusBar(recorrido, col, winHeight, page);
@@ -206,7 +238,6 @@ void scrollPage(char *map, int start, int end, int *row, int *col, int *page,
 
   refresh();
   printStatusBar(*row, *col, winHeight, *page);
-  move(*row, *col);
 }
 
 void printStatusBar(int row, int col, int winHeight, int page) {
